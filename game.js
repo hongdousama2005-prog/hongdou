@@ -18,7 +18,7 @@ const gameOptions = {
     gameStartTime: null,  // 游戏开始时间戳
     animalData: [
         { name: 'Giraffe', desc: 'It has a very long neck.', labels: ['neck', 'giraffe'], img: 'assets/giraffe.png' },
-        { name: 'Elephant', desc: 'It is a huge animal with a long trunk.', labels: ['huge', 'elephant'], img: 'assets/eleghant.png' },
+        { name: 'Elephant', desc: 'It is a huge animal with a long trunk.', labels: ['huge', 'elephant'], img: 'assets/elephant.png' },
         { name: 'Fox', desc: 'It is a clever animal with thick fur.', labels: ['fur', 'fox'], img: 'assets/fox.png' },
         { name: 'Wolf', desc: 'It lives in the forest and is dangerous.', labels: ['forest', 'wolf', 'danger'], img: 'assets/wolf.png' },
         { name: 'Snake', desc: 'It is a scary and long animal.', labels: ['snake', 'scary', 'long'], img: 'assets/snake.png' }
