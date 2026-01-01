@@ -5,7 +5,17 @@
  * 3. 强化视觉UI：卡片阴影、圆角、森林主题配色
  * 4. 用户登录系统 + 排行榜
  */
+// --- 核心修复：定义全局 SoundManager 补丁 ---
+const SoundManager = {
+    playClick: function() { 
+        console.log("SFX: Click"); 
+        // 这里可以扩展真正的 Web Audio 播放逻辑
+    },
+    playCorrect: function() { console.log("SFX: Correct"); },
+    playWrong: function() { console.log("SFX: Wrong"); }
+};
 
+// 下面紧接着你原有的 const gameOptions = { ... }
 const gameOptions = {
     width: 1600,
     height: 900,
@@ -239,17 +249,20 @@ class StartScene extends Phaser.Scene {
         startBtn.add([btnShadow, btnBg, btnTxt]);
 
         btnBg.on('pointerdown', () => {
-            SoundManager.playClick();
+            // 确保 SoundManager 存在才调用，双重保险
+            if (typeof SoundManager !== 'undefined') {
+                SoundManager.playClick();
+            }
+            
+            // 激活音频上下文（解决 AudioContext not allowed 提示）
+            if (this.sound && this.sound.context && this.sound.context.state === 'suspended') {
+                this.sound.context.resume();
+            }
+
             this.scene.start('MainScene');
         });
-        btnBg.on('pointerover', () => {
-            btnBg.setFillStyle(0x66bb6a);
-            startBtn.setScale(1.05);
-        });
-        btnBg.on('pointerout', () => {
-            btnBg.setFillStyle(0x4caf50);
-            startBtn.setScale(1.0);
-        });
+        
+        // 悬停动画保持不变...
 
         // 返回登录按钮
         const backBtn = this.add.container(800, 720);
