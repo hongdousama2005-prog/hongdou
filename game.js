@@ -5,17 +5,7 @@
  * 3. 强化视觉UI：卡片阴影、圆角、森林主题配色
  * 4. 用户登录系统 + 排行榜
  */
-// --- 核心修复：定义全局 SoundManager 补丁 ---
-const SoundManager = {
-    playClick: function() { 
-        console.log("SFX: Click"); 
-        // 这里可以扩展真正的 Web Audio 播放逻辑
-    },
-    playCorrect: function() { console.log("SFX: Correct"); },
-    playWrong: function() { console.log("SFX: Wrong"); }
-};
-
-// 下面紧接着你原有的 const gameOptions = { ... }
+// 注意：SoundManager 类在 sounds.js 中定义
 const gameOptions = {
     width: 1600,
     height: 900,
@@ -28,7 +18,7 @@ const gameOptions = {
     gameStartTime: null,  // 游戏开始时间戳
     animalData: [
         { name: 'Giraffe', desc: 'It has a very long neck.', labels: ['neck', 'giraffe'], img: 'assets/giraffe.png' },
-        { name: 'Elephant', desc: 'It is a huge animal with a long trunk.', labels: ['huge', 'elephant'], img: 'assets/elephant.png' },
+        { name: 'Elephant', desc: 'It is a huge animal with a long trunk.', labels: ['huge', 'elephant'], img: 'assets/eleghant.png' },
         { name: 'Fox', desc: 'It is a clever animal with thick fur.', labels: ['fur', 'fox'], img: 'assets/fox.png' },
         { name: 'Wolf', desc: 'It lives in the forest and is dangerous.', labels: ['forest', 'wolf', 'danger'], img: 'assets/wolf.png' },
         { name: 'Snake', desc: 'It is a scary and long animal.', labels: ['snake', 'scary', 'long'], img: 'assets/snake.png' }
@@ -306,21 +296,18 @@ class MainScene extends Phaser.Scene {
     initGameLayout() {
         gameOptions.isGameOver = false;
         gameOptions.timeLeft = 60;
-        // 不清除 wrongWords，让它跨关卡累积
-        gameOptions.gameStartTime = Date.now();  // 记录游戏开始时间
+        gameOptions.gameStartTime = Date.now();
         const levelData = gameOptions.animalData[gameOptions.currentLevel];
 
         // 1. 背景层
-        let bg = this.add.image(800, 450, 'bg').setDisplaySize(1600, 900).setAlpha(0.5);
+        this.add.image(800, 450, 'bg').setDisplaySize(1600, 900).setAlpha(0.5);
 
         // 2. 顶部 UI
-        // 积分板样式
         this.add.rectangle(230, 70, 400, 80, 0xffffff, 0.8).setStrokeStyle(3, 0x1a237e);
         this.scoreText = this.add.text(60, 70, `Score: ${gameOptions.score}`, { 
             fontSize: '40px', color: '#1a237e', fontWeight: 'bold' 
         }).setOrigin(0, 0.5);
 
-        // 计时器样式
         this.add.rectangle(1370, 70, 350, 80, 0xffffff, 0.8).setStrokeStyle(3, 0xc62828);
         this.timerText = this.add.text(1230, 70, `Time: ${gameOptions.timeLeft}s`, { 
             fontSize: '40px', color: '#c62828', fontWeight: 'bold' 
@@ -337,7 +324,7 @@ class MainScene extends Phaser.Scene {
             loop: true
         });
 
-        // 3. 描述气泡 (中上方)
+        // 3. 描述气泡
         const bubble = this.add.container(800, 180);
         const bubbleBg = this.add.rectangle(0, 0, 1000, 110, 0xffeb3b, 0.9).setStrokeStyle(4, 0xf9a825);
         const descTxt = this.add.text(0, 0, levelData.desc, { 
@@ -345,7 +332,7 @@ class MainScene extends Phaser.Scene {
         }).setOrigin(0.5);
         bubble.add([bubbleBg, descTxt]);
 
-        // 4. 动物角色 (自动缩放)
+        // 4. 动物角色
         const key = levelData.name.toLowerCase();
         if (this.textures.exists(key)) {
             const animalImg = this.add.image(800, 480, key);
@@ -353,85 +340,55 @@ class MainScene extends Phaser.Scene {
             animalImg.setScale(scale);
         }
 
-        // 5. 底部卡片生成区
-        // 全局单词库（用于生成干扰项）。可通过脚本维护或手动编辑。
-        const distractors = [
-            'fox','giraffe','eagle','wolf','penguin',
-            'care','sandwich','snake','scary','neck',
-            'guess','shark','whale','huge','dangerous',
-            'culture','however','danger',
-            'forest','kill',
-            'ivory','friendly','quite',
-            'fur','blind','hearing'
-        ];
-        
-        // 只显示5个选项：正确标签 + 随机干扰项（去重）
+        // 5. 选项生成逻辑
+        const distractors = ['fox','giraffe','eagle','wolf','penguin','care','sandwich','snake','scary','neck','guess','shark','whale','huge','dangerous','culture','however','danger','forest','kill','ivory','friendly','quite','fur','blind','hearing'];
         const neededDistractors = 5 - levelData.labels.length;
-        
-        // 过滤干扰项：移除与正确标签重复的单词，并去重
         const correctLabelsSet = new Set(levelData.labels.map(l => l.toLowerCase()));
-        const filteredDistractors = [...new Set(
-            distractors.filter(d => !correctLabelsSet.has(d.toLowerCase()))
-        )];
-        
-        // 随机选择需要的干扰项数量
-        const shuffledDistractors = filteredDistractors
-            .sort(() => Math.random() - 0.5)
-            .slice(0, neededDistractors);
-        
-        const currentLabels = [...levelData.labels, ...shuffledDistractors];
-        
-        // Fisher-Yates 洗牌算法，确保随机打乱
-        for (let i = currentLabels.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [currentLabels[i], currentLabels[j]] = [currentLabels[j], currentLabels[i]];
-        }
+        const filteredDistractors = [...new Set(distractors.filter(d => !correctLabelsSet.has(d.toLowerCase())))];
+        const shuffledDistractors = filteredDistractors.sort(() => Math.random() - 0.5).slice(0, neededDistractors);
+        const currentLabels = [...levelData.labels, ...shuffledDistractors].sort(() => Math.random() - 0.5);
 
-        // 优化布局：响应式排列单词卡片，防止溢出（5张卡片）
+        // 6. 布局卡片
         const cardsPerRow = 5;
         const cardWidth = 200;
-        const cardHeight = 90;
         const spacing = 15;
         const totalWidth = cardsPerRow * cardWidth + (cardsPerRow - 1) * spacing;
         const startX = Math.max(100, (1600 - totalWidth) / 2);
         const startY = 800;
 
         currentLabels.forEach((text, i) => {
-            const col = i % cardsPerRow;
-            const row = Math.floor(i / cardsPerRow);
-            const cardX = startX + col * (cardWidth + spacing) + cardWidth / 2;
-            const cardY = startY - row * (cardHeight + 20);
-            this.createWordCard(cardX, cardY, text, levelData.labels.includes(text));
+            const cardX = startX + i * (cardWidth + spacing) + cardWidth / 2;
+            this.createWordCard(cardX, startY, text, levelData.labels.includes(text));
         });
+
+        // 初始化目标区
+        this.targetHighlight = this.add.circle(800, 480, 280, 0x4caf50, 0.05).setDepth(500).setVisible(false);
+        this.targetSnapZone = this.add.circle(800, 480, 120, 0x4caf50, 0.08).setDepth(501).setVisible(false);
     }
 
+    // --- 独立的方法，不再嵌套在 initGameLayout 里 ---
     createWordCard(x, y, text, isCorrect) {
         const container = this.add.container(x, y);
-        // 卡片颜色（改进配色）
-        const colors = [0x81d4fa, 0xffe082, 0xa5d6a7, 0xce93d8];
-        const randomColor = colors[Math.floor(Math.random() * colors.length)];
+        const randomColor = [0x81d4fa, 0xffe082, 0xa5d6a7, 0xce93d8][Math.floor(Math.random() * 4)];
         
-        const shadow = this.add.rectangle(3, 3, 200, 90, 0x000000, 0.2); // 增强阴影
+        const shadow = this.add.rectangle(3, 3, 200, 90, 0x000000, 0.2);
         const cardBg = this.add.rectangle(0, 0, 200, 90, randomColor).setStrokeStyle(3, 0xffffff);
-        const cardTxt = this.add.text(0, 0, text, { 
-            fontSize: '26px', color: '#222', fontWeight: '600', wordWrap: { width: 180 }, align: 'center'
-        }).setOrigin(0.5).setMaxLines(2);
-        
-        // 音频按钮
-        const audioBtn = this.add.rectangle(0, 50, 40, 35, 0xff6b6b).setStrokeStyle(2, 0xffffff).setInteractive({ useHandCursor: true });
-        const audioIcon = this.add.text(0, 50, '🔊', { fontSize: '20px' }).setOrigin(0.5);
-        
-        container.add([shadow, cardBg, cardTxt, audioBtn, audioIcon]).setSize(200, 90).setInteractive({ draggable: true });
+        const cardTxt = this.add.text(0, 0, text, { fontSize: '26px', color: '#222', fontWeight: 'bold' }).setOrigin(0.5);
+        const audioBtn = this.add.rectangle(70, 25, 40, 35, 0xff6b6b).setStrokeStyle(2, 0xffffff).setInteractive({ useHandCursor: true });
+        const audioIcon = this.add.text(70, 25, '🔊', { fontSize: '18px' }).setOrigin(0.5);
+
+        container.add([shadow, cardBg, cardTxt, audioBtn, audioIcon]);
+        container.setSize(200, 90).setInteractive({ draggable: true });
         container.isCorrect = isCorrect;
         container.setData('originalX', x);
         container.setData('originalY', y);
         container.setData('originalColor', randomColor);
-        
-        // 音频播放函数：优先播放本地同名音频文件（assets/tts/<word>.mp3/.wav），否则回退到 SpeechSynthesis
+
+        // 音频播放函数：优先播放本地同名音频文件，否则回退到 SpeechSynthesis
         const playAudio = async () => {
             const safe = text.replace(/[^a-zA-Z0-9_-]/g, '_');
-            const mp3Path = `/assets/tts/${encodeURIComponent(safe)}.mp3`;
-            const wavPath = `/assets/tts/${encodeURIComponent(safe)}.wav`;
+            const mp3Path = `assets/tts/${encodeURIComponent(safe)}.mp3`;
+            const wavPath = `assets/tts/${encodeURIComponent(safe)}.wav`;
 
             try {
                 // 先尝试 mp3
@@ -467,47 +424,12 @@ class MainScene extends Phaser.Scene {
                 console.warn('TTS failed', e);
             }
         };
-        
-        audioBtn.on('pointerdown', (p) => {
-            if (p && p.event && typeof p.event.stopPropagation === 'function') {
-                p.event.stopPropagation();
-            }
-            playAudio();
-        });
-        
-        audioBtn.on('pointerover', () => {
-            audioBtn.setFillStyle(0xff7043);
-            this.tweens.killTweensOf(audioBtn);
-            this.tweens.add({ targets: audioBtn, scaleX: 1.1, scaleY: 1.1, duration: 100 });
-        });
-        
-        audioBtn.on('pointerout', () => {
-            audioBtn.setFillStyle(0xff6b6b);
-            this.tweens.killTweensOf(audioBtn);
-            this.tweens.add({ targets: audioBtn, scaleX: 1, scaleY: 1, duration: 100 });
-        });
-        
-        // 卡片悬停效果（简化版，避免干扰拖拽）
-        container.on('pointerover', () => {
-            if (gameOptions.isGameOver || container.isDragging) return;
-            cardBg.setFillStyle(0xe0e0e0);
-        });
-        
-        container.on('pointerout', () => {
-            const origColor = container.getData('originalColor');
-            cardBg.setFillStyle(origColor);
-        });
-        
-        // 创建目标高亮圈（延迟创建避免重复）
+
+        // 拖拽逻辑
         const TARGET_X = 800;
         const TARGET_Y = 480;
-        const DETECTION_RADIUS = 280; // 检测半径
-        const SNAP_RADIUS = 120; // 吸附半径（内圈）
-
-        if (!this.targetHighlight) {
-            this.targetHighlight = this.add.circle(TARGET_X, TARGET_Y, DETECTION_RADIUS, 0x4caf50, 0.05).setDepth(500).setVisible(false);
-            this.targetSnapZone = this.add.circle(TARGET_X, TARGET_Y, SNAP_RADIUS, 0x4caf50, 0.08).setDepth(501).setVisible(false);
-        }
+        const DETECTION_RADIUS = 280;
+        const SNAP_RADIUS = 120;
 
         container.on('dragstart', () => {
             if (gameOptions.isGameOver) return;
@@ -552,12 +474,20 @@ class MainScene extends Phaser.Scene {
             // 吸附区内：自动成功/失败处理
             if (dist <= SNAP_RADIUS) {
                 if (isCorrect) {
-                    SoundManager.playSuccess();
+                    if (typeof SoundManager !== 'undefined' && SoundManager.playSuccess) {
+                        SoundManager.playSuccess();
+                    } else if (typeof SoundManager !== 'undefined') {
+                        SoundManager.playCorrect();
+                    }
                     gameOptions.score += 10;
                     this.scoreText.setText(`Score: ${gameOptions.score}`);
                     this.tweens.add({ targets: container, x: TARGET_X, y: TARGET_Y - 50, scale: 0, alpha: 0, duration: 400, ease: 'Cubic.easeIn', onComplete: () => { container.destroy(); this.checkLevelComplete(); } });
                 } else {
-                    SoundManager.playError();
+                    if (typeof SoundManager !== 'undefined' && SoundManager.playError) {
+                        SoundManager.playError();
+                    } else if (typeof SoundManager !== 'undefined') {
+                        SoundManager.playWrong();
+                    }
                     gameOptions.score = Math.max(0, gameOptions.score - 5);
                     gameOptions.wrongWords.add(text);
                     this.scoreText.setText(`Score: ${gameOptions.score}`);
@@ -569,7 +499,11 @@ class MainScene extends Phaser.Scene {
             
             // 检测区内：给予提示反馈
             if (dist <= DETECTION_RADIUS && !isCorrect) {
-                SoundManager.playError();
+                if (typeof SoundManager !== 'undefined' && SoundManager.playError) {
+                    SoundManager.playError();
+                } else if (typeof SoundManager !== 'undefined') {
+                    SoundManager.playWrong();
+                }
                 gameOptions.score = Math.max(0, gameOptions.score - 3);
                 gameOptions.wrongWords.add(text);
                 this.scoreText.setText(`Score: ${gameOptions.score}`);
@@ -580,22 +514,59 @@ class MainScene extends Phaser.Scene {
             container.setScale(1.0);
             this.tweens.add({ targets: container, x: origX, y: origY, duration: 350, ease: 'Back.easeOut' });
         });
+
+        // 卡片悬停效果
+        container.on('pointerover', () => {
+            if (gameOptions.isGameOver || container.isDragging) return;
+            cardBg.setFillStyle(0xe0e0e0);
+        });
+        
+        container.on('pointerout', () => {
+            const origColor = container.getData('originalColor');
+            cardBg.setFillStyle(origColor);
+        });
+
+        // 音频按钮事件
+        audioBtn.on('pointerdown', (p) => {
+            if (p && p.event && typeof p.event.stopPropagation === 'function') {
+                p.event.stopPropagation();
+            }
+            playAudio();
+        });
+        
+        audioBtn.on('pointerover', () => {
+            audioBtn.setFillStyle(0xff7043);
+            this.tweens.killTweensOf(audioBtn);
+            this.tweens.add({ targets: audioBtn, scaleX: 1.1, scaleY: 1.1, duration: 100 });
+        });
+        
+        audioBtn.on('pointerout', () => {
+            audioBtn.setFillStyle(0xff6b6b);
+            this.tweens.killTweensOf(audioBtn);
+            this.tweens.add({ targets: audioBtn, scaleX: 1, scaleY: 1, duration: 100 });
+        });
     }
 
     checkLevelComplete() {
         const remaining = this.children.list.filter(c => c instanceof Phaser.GameObjects.Container && c.isCorrect);
         if (remaining.length === 0) {
-              SoundManager.playLevelComplete();
-              const nextBtn = this.add.container(1450, 480);
+            if (typeof SoundManager !== 'undefined' && SoundManager.playLevelComplete) {
+                SoundManager.playLevelComplete();
+            }
+            const nextBtn = this.add.container(1450, 480);
             const btnBg = this.add.rectangle(0, 0, 180, 80, 0xff9800).setInteractive({ useHandCursor: true }).setStrokeStyle(3, 0xffffff);
             nextBtn.add([btnBg, this.add.text(0, 0, 'NEXT >>', { fontSize: '32px', color: '#fff', fontWeight: 'bold' }).setOrigin(0.5)]);
             btnBg.on('pointerdown', () => {
-                SoundManager.playClick();
+                if (typeof SoundManager !== 'undefined') SoundManager.playClick();
                 gameOptions.currentLevel++;
                 if (gameOptions.currentLevel >= gameOptions.animalData.length) {
-                    SoundManager.playGameComplete();
+                    if (typeof SoundManager !== 'undefined' && SoundManager.playGameComplete) {
+                        SoundManager.playGameComplete();
+                    }
                     this.endGame("WELL DONE!");
-                } else { this.scene.restart(); }
+                } else { 
+                    this.scene.restart(); 
+                }
             });
         }
     }
@@ -626,7 +597,7 @@ class MainScene extends Phaser.Scene {
         const restartBtn = this.add.rectangle(-180, 240, 350, 100, 0x1a237e).setInteractive({ useHandCursor: true });
         panel.add([restartBtn, this.add.text(-180, 240, 'MAIN MENU', { color: '#fff', fontSize: '40px', fontWeight: 'bold' }).setOrigin(0.5)]);
         restartBtn.on('pointerdown', () => {
-            SoundManager.playClick();
+            if (typeof SoundManager !== 'undefined') SoundManager.playClick();
             this.scene.start('StartScene');
         });
         
@@ -643,7 +614,7 @@ class MainScene extends Phaser.Scene {
             });
             
             reviewBtn.on('pointerdown', () => {
-                SoundManager.playClick();
+                if (typeof SoundManager !== 'undefined') SoundManager.playClick();
                 const reviewList = Array.from(gameOptions.wrongWords || []);
                 // store temporarily for iframe fallback
                 localStorage.setItem('flashcardReview', JSON.stringify(reviewList));
