@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Unit 1 词汇闪卡学习系统 - 完整版</title>
+    <style>
+        :root { --primary: #1a237e; --secondary: #4caf50; --bg: #f0f2f5; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background-color: var(--bg); display: flex; flex-direction: column; align-items: center; min-height: 100vh; margin: 0; padding: 20px; }
+        h1 { color: var(--primary); margin: 10px 0; font-size: clamp(18px, 3vw, 24px); }
+        .progress { color: #666; margin-bottom: 15px; font-size: clamp(14px, 2.2vw, 18px); }
+        .flashcard-container { width: min(90%, 550px); height: min(65vh, 420px); perspective: 1000px; cursor: pointer; }
+        .card-inner { position: relative; width: 100%; height: 100%; transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1); transform-style: preserve-3d; box-shadow: 0 10px 30px rgba(0,0,0,0.15); border-radius: 20px; }
+        .flashcard-container.is-flipped .card-inner { transform: rotateY(180deg); }
+        .card-face { position: absolute; width: 100%; height: 100%; backface-visibility: hidden; border-radius: 20px; border: 5px solid white; padding: 18px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: center; }
+        .card-front { background: linear-gradient(135deg, #64b5f6, #1e88e5); color: white; align-items: center; }
+        .card-front h2 { font-size: clamp(32px, 8vw, 56px); margin: 0; text-shadow: 2px 2px 4px rgba(0,0,0,0.2); }
+        .card-back { background: white; color: #333; transform: rotateY(180deg); text-align: left; overflow-y: auto; }
+        .phonetic { color: #d32f2f; font-size: clamp(14px, 2.6vw, 22px); margin: 6px 0; font-family: 'Arial'; }
+        .meaning { font-size: clamp(16px, 2.6vw, 20px); color: #1a237e; font-weight: bold; margin-bottom: 10px; }
+        .example { margin-top: 12px; padding: 10px; background: #f9f9f9; border-left: 4px solid #1e88e5; font-style: italic; color: #555; line-height: 1.6; font-size: clamp(14px, 2.2vw, 16px); }
+        .example-zh { margin-top: 6px; padding: 8px 10px; background: #f0f7ff; border-left: 4px solid #4caf50; color: #2c5f2d; line-height: 1.6; font-size: clamp(13px, 2vw, 15px); font-style: normal; }
+        .controls { margin-top: 20px; display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+        button { padding: 10px 18px; font-size: clamp(14px, 2.2vw, 16px); border: none; border-radius: 50px; cursor: pointer; background: var(--primary); color: white; font-weight: bold; transition: 0.15s; }
+        button:hover { opacity: 0.92; transform: translateY(-2px); }
+        .btn-speak { background: #ff9800; }
+        .hint { font-size: 12px; margin-top: 12px; opacity: 0.8; }
+    </style>
+</head>
+<body>
+
+    <h1>Unit 1 核心词汇学习</h1>
+    <div class="progress" id="progressText">1 / 52</div>
+
+    <div class="flashcard-container" onclick="flipCard()">
+        <div class="card-inner" id="cardInner">
+            <div class="card-face card-front">
+                <h2 id="frontText">Word</h2>
+                <div class="hint">点击卡片查看释义 (空格键翻转)</div>
+            </div>
+            <div class="card-face card-back" id="backText"></div>
+        </div>
+    </div>
+
+    <div class="controls">
+        <button onclick="prevCard(event)">◀ 上一张</button>
+        <button class="btn-speak" onclick="speakWord(event)">🔊 发音 (En)</button>
+        <button onclick="nextCard(event)">下一张 ▶</button>
+    </div>
+
+    <script>
+        // 完整录入 52 个单词数据（含例句中文翻译）
+        const flashcards = [
+            {f: "fox", b: "n. 狐狸 /fɒks/", ex: "The quick brown fox is a common character in stories.", exZh: "聪明的狐狸是故事中常见的角色。"},
+            {f: "giraffe", b: "n. 长颈鹿 /dʒə'rɑːf/", ex: "The giraffe has a very long neck.", exZh: "长颈鹿有一条很长的脖子。"},
+            {f: "eagle", b: "n. 鹰 /'iːgl/", ex: "The eagle is flying high in the sky.", exZh: "鹰在天空中高飞。"},
+            {f: "wolf (pl. wolves)", b: "n. 狼 /wʊlf/", ex: "We could hear the wolves howling at night.", exZh: "我们可以听到狼在夜间的嚎叫。"},
+            {f: "penguin", b: "n. 企鹅 /'peŋgwɪn/", ex: "Penguins are great swimmers.", exZh: "企鹅是很好的游泳者。"},
+            {f: "care", b: "n. 照顾；护理 v. 关心 /keə(r)/", ex: "The nurse provides excellent care.", exZh: "护士提供优秀的护理。"},
+            {f: "take care of", b: "照顾；处理", ex: "Please take care of my dog.", exZh: "请照顾我的狗。"},
+            {f: "sandwich", b: "n. 三明治 /'sænwɪdʒ/", ex: "I had a chicken sandwich for lunch.", exZh: "我午餐吃了一个鸡肉三明治。"},
+            {f: "snake", b: "n. 蛇 /sneɪk/", ex: "The snake is sliding through the grass.", exZh: "蛇在草地里滑行。"},
+            {f: "scary", b: "adj. 吓人的 /'skeəri/", ex: "That was a very scary movie.", exZh: "那是一部非常吓人的电影。"},
+            {f: "neck", b: "n. 脖子 /nek/", ex: "A giraffe has a very long neck.", exZh: "长颈鹿有一条非常长的脖子。"},
+            {f: "guess", b: "v. 猜 n. 猜测 /ges/", ex: "Can you guess what is in the box?", exZh: "你能猜出盒子里有什么吗？"},
+            {f: "shark", b: "n. 鲨鱼 /ʃɑːk/", ex: "The shark is a dangerous fish.", exZh: "鲨鱼是危险的鱼类。"},
+            {f: "whale", b: "n. 鲸 /weɪl/", ex: "The blue whale is the largest animal.", exZh: "蓝鲸是最大的动物。"},
+            {f: "huge", b: "adj. 巨大的 /hjuːdʒ/", ex: "An elephant is a huge animal.", exZh: "大象是一种巨大的动物。"},
+            {f: "dangerous", b: "adj. 危险的 /'deɪndʒərəs/", ex: "It is dangerous to play with fire.", exZh: "玩火是危险的。"},
+            {f: "save", b: "v. 救；储蓄 /seɪv/", ex: "The firefighter's job is to save people.", exZh: "消防员的工作是救人。"},
+            {f: "luck", b: "n. 幸运 /lʌk/", ex: "Good luck with your exam!", exZh: "祝你考试好运！"},
+            {f: "Thai", b: "adj. 泰国的 n. 泰国人 /taɪ/", ex: "I love to eat Thai food.", exZh: "我喜欢吃泰国菜。"},
+            {f: "trunk", b: "n. 象鼻 /trʌŋk/", ex: "An elephant uses its trunk to drink.", exZh: "大象用象鼻喝水。"},
+            {f: "pick", b: "v. 捡；摘 /pɪk/", ex: "Don't pick the flowers in the park.", exZh: "不要摘公园里的花。"},
+            {f: "pick up", b: "捡起；拿起", ex: "Please pick up the trash.", exZh: "请捡起垃圾。"},
+            {f: "carry", b: "v. 拿；提 /'kæri/", ex: "Can you help me carry this box?", exZh: "你能帮我拿这个盒子吗？"},
+            {f: "playful", b: "adj. 爱嬉戏的 /'pleɪfl/", ex: "The little kitten is very playful.", exZh: "小猫咪非常爱嬉戏。"},
+            {f: "swimmer", b: "n. 游泳者 /'swɪmə(r)/", ex: "She is a very good swimmer.", exZh: "她是一位很好的游泳者。"},
+            {f: "one another", b: "互相", ex: "We should always help one another.", exZh: "我们应该互相帮助。"},
+            {f: "look after", b: "照顾", ex: "My grandmother looks after me.", exZh: "我的祖母照顾我。"},
+            {f: "culture", b: "n. 文化 /'kʌltʃə(r)/", ex: "China has a rich culture.", exZh: "中国有丰富的文化。"},
+            {f: "however", b: "adv. 然而 /haʊ'evə(r)/", ex: "He is tired. However, he keeps working.", exZh: "他很累。然而，他继续工作。"},
+            {f: "danger", b: "n. 危险 /'deɪndʒə(r)/", ex: "The sign on the box says 'Danger'.", exZh: "盒子上的标志写着'危险'。"},
+            {f: "in danger", b: "处于危险之中", ex: "The bird is in danger because of the cat.", exZh: "这只鸟因为猫而处于危险之中。"},
+            {f: "forest", b: "n. 森林 /'fɒrɪst/", ex: "Many animals live in the forest.", exZh: "许多动物住在森林里。"},
+            {f: "cut down", b: "砍倒；减少", ex: "They are cutting down old trees.", exZh: "他们在砍倒老树。"},
+            {f: "too many", b: "太多", ex: "There are too many people on the bus.", exZh: "公共汽车上的人太多了。"},
+            {f: "kill", b: "v. 杀死 /kɪl/", ex: "It is wrong to kill wild animals.", exZh: "杀死野生动物是错误的。"},
+            {f: "made of", b: "由……制成", ex: "This desk is made of wood.", exZh: "这张桌子是由木头制成的。"},
+            {f: "ivory", b: "n. 象牙 /'aɪvəri/", ex: "It is illegal to buy and sell ivory.", exZh: "买卖象牙是违法的。"},
+            {f: "friendly", b: "adj. 友好的 /'frendli/", ex: "My neighbor is a very friendly person.", exZh: "我的邻居是一个非常友好的人。"},
+            {f: "quiet", b: "adj. 相当；完全 /kwaɪt/", ex: "The movie was quite good.", exZh: "这部电影相当不错。"},
+            {f: "quite a", b: "相当；非常", ex: "That's quite a surprise!", exZh: "那真是一个不小的惊喜！"},
+            {f: "not ... at all", b: "一点也不", ex: "I'm not tired at all.", exZh: "我一点也不累。"},
+            {f: "fur", b: "n. 软毛 /fɜː(r)/", ex: "My cat has soft white fur.", exZh: "我的猫有柔软的白毛。"},
+            {f: "blind", b: "adj. 瞎的 /blaɪnd/", ex: "He has been blind since he was born.", exZh: "他从出生起就失明了。"},
+            {f: "hearing", b: "n. 听力 /'hɪərɪŋ/", ex: "Dogs have very good hearing.", exZh: "狗的听力很好。"},
+            {f: "Antarctica", b: "n. 南极洲 /æn'tɑːktɪkə/", ex: "Penguins live in Antarctica.", exZh: "企鹅住在南极洲。"},
+            {f: "Africa", b: "n. 非洲 /'æfrɪkə/", ex: "Lions and elephants live in Africa.", exZh: "狮子和大象住在非洲。"},
+            {f: "Thailand", b: "n. 泰国 /'taɪlænd/", ex: "Bangkok is the capital of Thailand.", exZh: "曼谷是泰国的首都。"},
+            {f: "rule", b: "n. 规则 /ruːl/", ex: "We must obey the traffic rules.", exZh: "我们必须遵守交通规则。"},
+            {f: "order", b: "n. 秩序 v. 点菜 /'ɔːdə(r)/", ex: "Are you ready to order?", exZh: "你准备好点菜了吗？"},
+            {f: "point", b: "v. 指向 /pɔɪnt/", ex: "It's rude to point at people.", exZh: "指向别人是不礼貌的。"},
+            {f: "follow", b: "v. 遵循 /'fɒləʊ/", ex: "Follow your teacher's advice.", exZh: "听取你老师的建议。"},
+            {f: "late for", b: "迟到", ex: "Hurry up, or you will be late for school.", exZh: "快点，否则你会迟到上学。"}
+        ];
+
+        // support receiving review list from parent via postMessage (embedded iframe)
+        let reviewList = null;
+        let currentFlashcards = flashcards;
+        let currentIndex = 0;
+
+        function applyReviewList(list) {
+            if (!Array.isArray(list) || list.length === 0) return false;
+            const normalized = list.map(s => String(s).toLowerCase());
+            const filtered = flashcards.filter(c => normalized.some(w => c.f.toLowerCase().startsWith(w) || c.f.toLowerCase() === w));
+            if (filtered.length > 0) {
+                currentFlashcards = filtered;
+                currentIndex = 0;
+                updateCard();
+                return true;
+            }
+            return false;
+        }
+
+        // Try to get review list from parent iframe via postMessage.
+        // If no parent response, fallback to localStorage value.
+        let receivedFromParent = false;
+        window.addEventListener('message', (ev) => {
+            try {
+                const msg = ev.data;
+                if (msg && msg.type === 'flashcardReviewData' && msg.payload && Array.isArray(msg.payload.review)) {
+                    receivedFromParent = true;
+                    reviewList = msg.payload.review;
+                    applyReviewList(reviewList);
+                    // cleanup localStorage copy if present
+                    try { localStorage.removeItem('flashcardReview'); } catch (e) {}
+                }
+            } catch (e) { /* ignore */ }
+        });
+
+        // If inside iframe, request data from parent
+        try {
+            if (window.parent && window.parent !== window) {
+                window.parent.postMessage('requestFlashcardReview', '*');
+            }
+        } catch (e) {}
+
+        // fallback: after short delay, use localStorage if parent didn't respond
+        setTimeout(() => {
+            if (receivedFromParent) return;
+            const reviewRaw = (() => { try { return localStorage.getItem('flashcardReview'); } catch(e) { return null; } })();
+            if (reviewRaw) {
+                try { reviewList = JSON.parse(reviewRaw); } catch(e) { reviewList = null; }
+            }
+            if (applyReviewList(reviewList)) {
+                try { localStorage.removeItem('flashcardReview'); } catch(e) {}
+            } else {
+                // keep full list
+                currentFlashcards = flashcards;
+            }
+        }, 250);
+
+        function flipCard() { document.getElementById('cardInner').parentElement.classList.toggle('is-flipped'); }
+
+        function updateCard() {
+            const container = document.querySelector('.flashcard-container');
+            container.classList.remove('is-flipped');
+            setTimeout(() => {
+                const card = currentFlashcards[currentIndex];
+                document.getElementById('frontText').innerText = card.f;
+                let html = `<div class="meaning">${card.b}</div>`;
+                if (card.ex) {
+                    html += `<div class="example">${card.ex}</div>`;
+                }
+                if (card.exZh) {
+                    html += `<div class="example-zh">${card.exZh}</div>`;
+                }
+                document.getElementById('backText').innerHTML = html;
+                document.getElementById('progressText').innerText = `${currentIndex + 1} / ${currentFlashcards.length}`;
+            }, 150);
+        }
+
+        function nextCard(e) { e.stopPropagation(); currentIndex = (currentIndex + 1) % currentFlashcards.length; updateCard(); }
+        function prevCard(e) { e.stopPropagation(); currentIndex = (currentIndex - 1 + currentFlashcards.length) % currentFlashcards.length; updateCard(); }
+        function speakWord(e) { 
+            e.stopPropagation(); 
+            const word = currentFlashcards[currentIndex].f.split('(')[0];
+            const msg = new SpeechSynthesisUtterance(word);
+            msg.lang = 'en-US';
+            window.speechSynthesis.speak(msg);
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if(e.key === 'ArrowRight') nextCard(e);
+            if(e.key === 'ArrowLeft') prevCard(e);
+            if(e.key === ' ') flipCard();
+        });
+
+        updateCard();
+    </script>
+</body>
+</html>
